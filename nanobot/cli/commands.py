@@ -8,6 +8,11 @@ import select
 import sys
 
 import typer
+import os
+
+# Fix Windows encoding issues before importing rich
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.table import Table
@@ -27,7 +32,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-console = Console()
+console = Console(legacy_windows=False, force_terminal=False)
 EXIT_COMMANDS = {"exit", "quit", "/exit", "/quit", ":q"}
 
 # ---------------------------------------------------------------------------
@@ -341,7 +346,10 @@ def gateway(
         import logging
         logging.basicConfig(level=logging.DEBUG)
     
-    console.print(f"{__logo__} Starting nanobot gateway on port {port}...")
+    try:
+        console.print(f"{__logo__} Starting nanobot gateway on port {port}...")
+    except UnicodeEncodeError:
+        print(f"Starting nanobot gateway on port {port}...")
     
     config = load_config()
     bus = MessageBus()
@@ -405,15 +413,27 @@ def gateway(
     channels = ChannelManager(config, bus)
     
     if channels.enabled_channels:
-        console.print(f"[green]✓[/green] Channels enabled: {', '.join(channels.enabled_channels)}")
+        try:
+            console.print(f"[green]✓[/green] Channels enabled: {', '.join(channels.enabled_channels)}")
+        except UnicodeEncodeError:
+            print(f"Channels enabled: {', '.join(channels.enabled_channels)}")
     else:
-        console.print("[yellow]Warning: No channels enabled[/yellow]")
+        try:
+            console.print("[yellow]Warning: No channels enabled[/yellow]")
+        except UnicodeEncodeError:
+            print("Warning: No channels enabled")
     
     cron_status = cron.status()
     if cron_status["jobs"] > 0:
-        console.print(f"[green]✓[/green] Cron: {cron_status['jobs']} scheduled jobs")
+        try:
+            console.print(f"[green]✓[/green] Cron: {cron_status['jobs']} scheduled jobs")
+        except UnicodeEncodeError:
+            print(f"Cron: {cron_status['jobs']} scheduled jobs")
     
-    console.print(f"[green]✓[/green] Heartbeat: every 30m")
+    try:
+        console.print(f"[green]✓[/green] Heartbeat: every 30m")
+    except UnicodeEncodeError:
+        print(f"Heartbeat: every 30m")
     
     async def run():
         try:

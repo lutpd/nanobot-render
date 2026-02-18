@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: nanobot-telegram
+    runtime: docker
+    plan: free
+    envVars:
+      - key: APIKEY
+        sync: false
+      - key: APIBASE
+        sync: false
+      - key: MODELID
+        sync: false
+      - key: TELEGRAMTOKEN
+        sync: false
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
