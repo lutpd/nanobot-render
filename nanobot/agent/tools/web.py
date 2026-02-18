@@ -44,8 +44,8 @@ def _validate_url(url: str) -> tuple[bool, str]:
 
 
 class WebSearchTool(Tool):
-    """Search the web using Brave Search or Ollama Web Search API."""
-
+    """Search the web using Brave Search API."""
+    
     name = "web_search"
     description = "Search the web. Returns titles, URLs, and snippets."
     parameters = {
@@ -56,25 +56,15 @@ class WebSearchTool(Tool):
         },
         "required": ["query"]
     }
-
+    
     def __init__(self, api_key: str | None = None, max_results: int = 5):
         self.api_key = api_key or os.environ.get("BRAVE_API_KEY", "")
         self.max_results = max_results
-        # Check if using Ollama Web Search API
-        self.use_ollama_web = os.environ.get("USE_OLLAMA_WEB", "false").lower() == "true"
-        self.ollama_web_key = os.environ.get("OLLAMA_WEB_KEY", "")
-
+    
     async def execute(self, query: str, count: int | None = None, **kwargs: Any) -> str:
-        if self.use_ollama_web:
-            return await self._search_ollama_web(query)
-        else:
-            return await self._search_brave(query, count)
-
-    async def _search_brave(self, query: str, count: int | None = None) -> str:
-        """Search using Brave Search API."""
         if not self.api_key:
             return "Error: BRAVE_API_KEY not configured"
-
+        
         try:
             n = min(max(count or self.max_results, 1), 10)
             async with httpx.AsyncClient() as client:
@@ -85,11 +75,11 @@ class WebSearchTool(Tool):
                     timeout=10.0
                 )
                 r.raise_for_status()
-
+            
             results = r.json().get("web", {}).get("results", [])
             if not results:
                 return f"No results for: {query}"
-
+            
             lines = [f"Results for: {query}\n"]
             for i, item in enumerate(results[:n], 1):
                 lines.append(f"{i}. {item.get('title', '')}\n   {item.get('url', '')}")
@@ -98,52 +88,6 @@ class WebSearchTool(Tool):
             return "\n".join(lines)
         except Exception as e:
             return f"Error: {e}"
-
-    async def _search_ollama_web(self, query: str) -> str:
-        """Search using Ollama Web Search API (https://ollama.com/api/web_search)."""
-        if not self.ollama_web_key:
-            return "Error: OLLAMA_WEB_KEY not configured"
-
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://ollama.com/api/web_search",
-                    json={"query": query},
-                    headers={"Authorization": f"Bearer {self.ollama_web_key}"},
-                    timeout=30.0
-                )
-                response.raise_for_status()
-
-                data = response.json()
-
-                # Format results
-                lines = [f"Results for: {query}\n"]
-
-                # Check different possible response formats
-                if isinstance(data, list):
-                    for i, item in enumerate(data[:self.max_results], 1):
-                        title = item.get('title', 'No title')
-                        url = item.get('url', 'No URL')
-                        snippet = item.get('snippet', item.get('description', ''))
-                        lines.append(f"{i}. {title}\n   {url}")
-                        if snippet:
-                            lines.append(f"   {snippet}")
-                elif isinstance(data, dict):
-                    results = data.get('results', data.get('web', []))
-                    for i, item in enumerate(results[:self.max_results], 1):
-                        title = item.get('title', 'No title')
-                        url = item.get('url', 'No URL')
-                        snippet = item.get('snippet', item.get('description', ''))
-                        lines.append(f"{i}. {title}\n   {url}")
-                        if snippet:
-                            lines.append(f"   {snippet}")
-                else:
-                    return f"Results for: {query}\n\n{str(data)}"
-
-                return "\n".join(lines)
-
-        except Exception as e:
-            return f"Error searching with Ollama Web: {e}"
 
 
 class WebFetchTool(Tool):
